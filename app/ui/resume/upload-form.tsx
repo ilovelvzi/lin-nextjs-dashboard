@@ -53,10 +53,20 @@ export default function UploadForm() {
     setIsSubmitting(true);
 
     const form = e.currentTarget;
-    const formData = new FormData(form);
+    const title = (form.elements.namedItem('title') as HTMLInputElement)?.value?.trim();
+    const jobDescription = (form.elements.namedItem('jobDescription') as HTMLTextAreaElement)?.value?.trim() || undefined;
 
-    // For PDF mode, parse the PDF first and replace content
-    if (tab === 'pdf') {
+    let originalContent: string;
+
+    if (tab === 'text') {
+      originalContent = (form.elements.namedItem('originalContent') as HTMLTextAreaElement)?.value?.trim() || '';
+      if (!originalContent) {
+        setError('请输入简历内容');
+        setIsSubmitting(false);
+        return;
+      }
+    } else {
+      // PDF mode — parse the file first
       if (!pdfFile) {
         setError('请选择PDF文件');
         setIsSubmitting(false);
@@ -77,7 +87,7 @@ export default function UploadForm() {
           setIsParsing(false);
           return;
         }
-        formData.set('originalContent', data.text);
+        originalContent = data.text as string;
       } catch {
         setError('PDF解析失败，请重试');
         setIsSubmitting(false);
@@ -86,6 +96,12 @@ export default function UploadForm() {
       }
       setIsParsing(false);
     }
+
+    // Build FormData manually to avoid hidden-field workarounds
+    const formData = new FormData();
+    formData.set('title', title);
+    formData.set('originalContent', originalContent);
+    if (jobDescription) formData.set('jobDescription', jobDescription);
 
     const result = await createResume(formData);
 
@@ -97,8 +113,6 @@ export default function UploadForm() {
 
     // Trigger analysis in background
     const resumeId = result.id;
-    const originalContent = formData.get('originalContent') as string;
-    const jobDescription = formData.get('jobDescription') as string | null;
 
     fetch('/api/resume/analyze', {
       method: 'POST',
@@ -123,7 +137,6 @@ export default function UploadForm() {
           required
           placeholder="例如：前端工程师简历 2024"
           className="block w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-2 placeholder:text-gray-400 focus:border-blue-500"
-          defaultValue="未命名简历"
         />
       </div>
 
@@ -155,7 +168,6 @@ export default function UploadForm() {
           <div className="mt-3">
             <textarea
               name="originalContent"
-              required={tab === 'text'}
               rows={14}
               placeholder="请将您的简历内容粘贴到这里..."
               className="block w-full rounded-md border border-gray-200 px-3 py-2 text-sm outline-2 placeholder:text-gray-400 focus:border-blue-500 resize-y"
@@ -197,8 +209,6 @@ export default function UploadForm() {
               onChange={handleFileChange}
               className="hidden"
             />
-            {/* Hidden field to satisfy server validation for PDF mode */}
-            <input type="hidden" name="originalContent" value={pdfFile ? ' ' : ''} />
           </div>
         )}
       </div>
