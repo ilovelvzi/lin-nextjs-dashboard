@@ -198,6 +198,7 @@ export async function registerUser(
       VALUES (${name}, ${email}, ${hashedPassword})
     `;
   } catch (error) {
+    console.error('Database Error:', error);
     return { message: "数据库错误：注册失败，请稍后重试。" };
   }
 
