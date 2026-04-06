@@ -11,6 +11,7 @@ import { Button } from "./button";
 import { useActionState } from "react";
 import { authenticate } from "@/app/lib/actions";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginForm() {
   const searchParams = useSearchParams();
@@ -80,9 +81,9 @@ export default function LoginForm() {
         </div>
         <p className="mt-2 text-center text-sm text-gray-600">
           还没有账号？{" "}
-          <a href="/register" className="font-medium text-blue-500 hover:text-blue-400">
+          <Link href="/register" className="font-medium text-blue-500 hover:text-blue-400">
             去注册
-          </a>
+          </Link>
         </p>
       </div>
     </form>
