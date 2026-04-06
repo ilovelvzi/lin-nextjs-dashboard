@@ -78,6 +78,12 @@ export default function LoginForm() {
             </>
           )}
         </div>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          还没有账号？{" "}
+          <a href="/register" className="font-medium text-blue-500 hover:text-blue-400">
+            去注册
+          </a>
+        </p>
       </div>
     </form>
   );

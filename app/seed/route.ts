@@ -101,6 +101,61 @@ async function seedRevenue() {
   return insertedRevenue;
 }
 
+async function seedResumes() {
+  await sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`;
+  await sql`
+    CREATE TABLE IF NOT EXISTS resumes (
+      id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title VARCHAR(255) NOT NULL DEFAULT '未命名简历',
+      original_content TEXT NOT NULL,
+      optimized_content TEXT,
+      job_description TEXT,
+      score INTEGER DEFAULT 0,
+      status VARCHAR(50) DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+}
+
+async function seedResumeSuggestions() {
+  await sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`;
+  await sql`
+    CREATE TABLE IF NOT EXISTS resume_suggestions (
+      id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+      resume_id UUID NOT NULL REFERENCES resumes(id) ON DELETE CASCADE,
+      category VARCHAR(100) NOT NULL,
+      original_text TEXT,
+      suggested_text TEXT,
+      reason TEXT,
+      priority VARCHAR(20) DEFAULT 'medium',
+      is_applied BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+}
+
+async function seedResumeReports() {
+  await sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`;
+  await sql`
+    CREATE TABLE IF NOT EXISTS resume_reports (
+      id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+      resume_id UUID NOT NULL REFERENCES resumes(id) ON DELETE CASCADE,
+      overall_score INTEGER DEFAULT 0,
+      content_score INTEGER DEFAULT 0,
+      format_score INTEGER DEFAULT 0,
+      keyword_score INTEGER DEFAULT 0,
+      experience_score INTEGER DEFAULT 0,
+      education_score INTEGER DEFAULT 0,
+      summary TEXT,
+      strengths TEXT[],
+      weaknesses TEXT[],
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+}
+
 export async function GET() {
   try {
     const result = await sql.begin((sql) => [
@@ -108,6 +163,9 @@ export async function GET() {
       seedCustomers(),
       seedInvoices(),
       seedRevenue(),
+      seedResumes(),
+      seedResumeSuggestions(),
+      seedResumeReports(),
     ]);
 
     return Response.json({ message: 'Database seeded successfully' });
