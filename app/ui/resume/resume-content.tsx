@@ -59,47 +59,49 @@ function parseResumeIntoSections(content: string): ResumeSection[] {
   let currentTitle = '简历内容';
   let currentLines: string[] = [];
 
-  // Heuristic: a line is a section header if it:
-  // - Is relatively short (< 30 chars)
-  // - Does not start with bullet-like characters
-  // - Stands alone (previous and/or next line is blank)
-  // - Or is in ALL CAPS / starts with common header markers
+  function hasHeaderMarker(trimmed: string, nextLine: string): boolean {
+    return (
+      /^[#]{1,3}\s/.test(trimmed) ||
+      /^[【\[].*[】\]]$/.test(trimmed) ||
+      /^={2,}/.test(trimmed) ||
+      /^-{3,}/.test(nextLine) ||
+      /^={3,}/.test(nextLine)
+    );
+  }
+
+  function matchesKnownSection(text: string): boolean {
+    const cleanTitle = text
+      .replace(/^[#]+\s*/, '')
+      .replace(/^[【\[]/, '')
+      .replace(/[】\]]$/, '')
+      .replace(/[:：]$/, '')
+      .trim();
+    return SECTION_PATTERNS.some(({ pattern }) => pattern.test(cleanTitle));
+  }
+
+  function isIsolatedShortLine(
+    trimmed: string,
+    idx: number,
+  ): boolean {
+    if (trimmed.length > SHORT_LINE_LENGTH) return false;
+    const prevBlank = idx === 0 || !lines[idx - 1]?.trim();
+    const nextBlank =
+      idx === lines.length - 1 || !lines[idx + 1]?.trim();
+    return prevBlank && nextBlank;
+  }
+
   const isHeader = (line: string, idx: number): boolean => {
     const trimmed = line.trim();
     if (!trimmed || trimmed.length > MAX_HEADER_LENGTH) return false;
     if (/^[-•·▪▸►➤→※*]/.test(trimmed)) return false;
     if (/^[\d]+[.\)、]/.test(trimmed)) return false;
 
-    // Check for common header markers
-    const hasHeaderMarker =
-      /^[#]{1,3}\s/.test(trimmed) ||
-      /^[【\[].*[】\]]$/.test(trimmed) ||
-      /^={2,}/.test(trimmed) ||
-      /^-{3,}/.test(lines[idx + 1]?.trim() || '') ||
-      /^={3,}/.test(lines[idx + 1]?.trim() || '');
-
-    if (hasHeaderMarker) return true;
-
-    // Check if it matches known section patterns
-    const cleanTitle = trimmed
-      .replace(/^[#]+\s*/, '')
-      .replace(/^[【\[]/, '')
-      .replace(/[】\]]$/, '')
-      .replace(/[:：]$/, '')
-      .trim();
-    for (const { pattern } of SECTION_PATTERNS) {
-      if (pattern.test(cleanTitle)) return true;
-    }
-
-    // A short line surrounded by blank lines
-    if (trimmed.length <= SHORT_LINE_LENGTH) {
-      const prevBlank = idx === 0 || !lines[idx - 1]?.trim();
-      const nextBlank =
-        idx === lines.length - 1 || !lines[idx + 1]?.trim();
-      if (prevBlank && nextBlank) return true;
-    }
-
-    return false;
+    const nextLine = lines[idx + 1]?.trim() || '';
+    return (
+      hasHeaderMarker(trimmed, nextLine) ||
+      matchesKnownSection(trimmed) ||
+      isIsolatedShortLine(trimmed, idx)
+    );
   };
 
   for (let i = 0; i < lines.length; i++) {

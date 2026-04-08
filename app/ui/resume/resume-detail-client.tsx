@@ -237,7 +237,6 @@ export default function ResumeDetailClient({
                 setIsOptimizing(false);
                 setOptimizeProgress('');
                 router.push(`/dashboard/resume/${resume.id}/optimized`);
-                router.refresh();
               } else if (eventType === 'error') {
                 throw new Error(
                   (data.message as string) || 'AI优化失败',
