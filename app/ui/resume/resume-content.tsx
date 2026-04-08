@@ -17,6 +17,9 @@ type ResumeSection = {
   icon: React.ElementType;
 };
 
+const MAX_HEADER_LENGTH = 40;
+const SHORT_LINE_LENGTH = 20;
+
 // Common resume section header patterns (Chinese + English)
 const SECTION_PATTERNS: Array<{ pattern: RegExp; icon: React.ElementType }> = [
   {
@@ -63,7 +66,7 @@ function parseResumeIntoSections(content: string): ResumeSection[] {
   // - Or is in ALL CAPS / starts with common header markers
   const isHeader = (line: string, idx: number): boolean => {
     const trimmed = line.trim();
-    if (!trimmed || trimmed.length > 40) return false;
+    if (!trimmed || trimmed.length > MAX_HEADER_LENGTH) return false;
     if (/^[-•·▪▸►➤→※*]/.test(trimmed)) return false;
     if (/^[\d]+[.\)、]/.test(trimmed)) return false;
 
@@ -89,7 +92,7 @@ function parseResumeIntoSections(content: string): ResumeSection[] {
     }
 
     // A short line surrounded by blank lines
-    if (trimmed.length <= 20) {
+    if (trimmed.length <= SHORT_LINE_LENGTH) {
       const prevBlank = idx === 0 || !lines[idx - 1]?.trim();
       const nextBlank =
         idx === lines.length - 1 || !lines[idx + 1]?.trim();

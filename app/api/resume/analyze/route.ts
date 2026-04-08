@@ -153,28 +153,31 @@ export async function POST(request: NextRequest) {
           )
         `;
 
-        // Send suggestions one by one with a small delay for progressive rendering
+        // Batch-insert suggestions and then send events progressively
         const suggestions = analysis.suggestions ?? [];
+        const insertedRows = await Promise.all(
+          suggestions.map((s) =>
+            sql<{ id: string }[]>`
+              INSERT INTO resume_suggestions (
+                resume_id, category, original_text, suggested_text, reason, priority
+              ) VALUES (
+                ${resumeId},
+                ${s.category ?? '其他'},
+                ${s.original_text ?? null},
+                ${s.suggested_text ?? null},
+                ${s.reason ?? null},
+                ${s.priority ?? 'medium'}
+              )
+              RETURNING id
+            `,
+          ),
+        );
+
+        // Send suggestion events progressively
         for (let i = 0; i < suggestions.length; i++) {
           const s = suggestions[i];
-
-          // Save suggestion to database
-          const rows = await sql<{ id: string }[]>`
-            INSERT INTO resume_suggestions (
-              resume_id, category, original_text, suggested_text, reason, priority
-            ) VALUES (
-              ${resumeId},
-              ${s.category ?? '其他'},
-              ${s.original_text ?? null},
-              ${s.suggested_text ?? null},
-              ${s.reason ?? null},
-              ${s.priority ?? 'medium'}
-            )
-            RETURNING id
-          `;
-
           sendEvent('suggestion', {
-            id: rows[0].id,
+            id: insertedRows[i][0].id,
             resume_id: resumeId,
             category: s.category ?? '其他',
             original_text: s.original_text ?? null,

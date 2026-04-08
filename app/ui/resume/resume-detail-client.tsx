@@ -232,15 +232,7 @@ export default function ResumeDetailClient({
                   (data.message as string) || '正在生成优化简历...',
                 );
               } else if (eventType === 'chunk') {
-                setOptimizeProgress(
-                  (prev) => {
-                    // Only show "AI正在生成中..." after the first chunk
-                    if (prev.startsWith('正在连接') || prev.startsWith('AI正在生成')) {
-                      return 'AI正在生成优化简历...';
-                    }
-                    return prev;
-                  },
-                );
+                setOptimizeProgress('AI正在生成优化简历...');
               } else if (eventType === 'done') {
                 setIsOptimizing(false);
                 setOptimizeProgress('');
