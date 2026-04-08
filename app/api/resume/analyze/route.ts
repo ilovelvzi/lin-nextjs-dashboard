@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
-import postgres from 'postgres';
-import client from '@/app/lib/ai-client';
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
+import postgres from "postgres";
+import client from "@/app/lib/ai-client";
 
-const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
+const sql = postgres(process.env.POSTGRES_URL!, { ssl: "require" });
 
 const SYSTEM_PROMPT = `你是一位专业的简历优化顾问，拥有丰富的招聘和人才评估经验。
 请分析用户提供的简历内容，并给出详细的评分和优化建议。
@@ -43,19 +43,23 @@ suggestions中至少提供3条具体可操作的建议。`;
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: '未授权' }, { status: 401 });
+    return NextResponse.json({ error: "未授权" }, { status: 401 });
   }
 
-  let body: { resumeContent: string; jobDescription?: string; resumeId: string };
+  let body: {
+    resumeContent: string;
+    jobDescription?: string;
+    resumeId: string;
+  };
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: '请求体格式错误' }, { status: 400 });
+    return NextResponse.json({ error: "请求体格式错误" }, { status: 400 });
   }
 
   const { resumeContent, jobDescription, resumeId } = body;
   if (!resumeContent || !resumeId) {
-    return NextResponse.json({ error: '缺少必要参数' }, { status: 400 });
+    return NextResponse.json({ error: "缺少必要参数" }, { status: 400 });
   }
 
   // Verify the resume belongs to the user
@@ -63,7 +67,7 @@ export async function POST(request: NextRequest) {
     SELECT id FROM resumes WHERE id = ${resumeId} AND user_id = ${session.user.id}
   `;
   if (resumeRows.length === 0) {
-    return NextResponse.json({ error: '简历不存在' }, { status: 404 });
+    return NextResponse.json({ error: "简历不存在" }, { status: 404 });
   }
 
   // Mark resume as analyzing
@@ -78,15 +82,16 @@ export async function POST(request: NextRequest) {
 
   try {
     const completion = await client.chat.completions.create({
-      model: 'qwen-plus',
+      model: "qwen3.6-plus",
+      // stream: true,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userMessage },
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userMessage },
       ],
-      response_format: { type: 'json_object' },
+      response_format: { type: "json_object" },
     });
 
-    const rawContent = completion.choices[0]?.message?.content ?? '{}';
+    const rawContent = completion.choices[0]?.message?.content ?? "{}";
     const analysis = JSON.parse(rawContent) as {
       overall_score: number;
       content_score: number;
@@ -102,7 +107,7 @@ export async function POST(request: NextRequest) {
         original_text: string | null;
         suggested_text: string | null;
         reason: string;
-        priority: 'high' | 'medium' | 'low';
+        priority: "high" | "medium" | "low";
       }>;
     };
 
@@ -127,22 +132,26 @@ export async function POST(request: NextRequest) {
     `;
 
     // Save suggestions to database
-    if (Array.isArray(analysis.suggestions) && analysis.suggestions.length > 0) {
+    if (
+      Array.isArray(analysis.suggestions) &&
+      analysis.suggestions.length > 0
+    ) {
       await Promise.all(
-        analysis.suggestions.map((s) =>
-          sql`
+        analysis.suggestions.map(
+          (s) =>
+            sql`
             INSERT INTO resume_suggestions (
               resume_id, category, original_text, suggested_text, reason, priority
             ) VALUES (
               ${resumeId},
-              ${s.category ?? '其他'},
+              ${s.category ?? "其他"},
               ${s.original_text ?? null},
               ${s.suggested_text ?? null},
               ${s.reason ?? null},
-              ${s.priority ?? 'medium'}
+              ${s.priority ?? "medium"}
             )
-          `
-        )
+          `,
+        ),
       );
     }
 
@@ -155,11 +164,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, analysis });
   } catch (error) {
-    console.error('AI analysis error:', error);
+    console.error("AI analysis error:", error);
     await sql`
       UPDATE resumes SET status = 'failed', updated_at = CURRENT_TIMESTAMP
       WHERE id = ${resumeId}
     `;
-    return NextResponse.json({ error: 'AI分析失败，请稍后重试' }, { status: 500 });
+    return NextResponse.json(
+      { error: "AI分析失败，请稍后重试" },
+      { status: 500 },
+    );
   }
 }

@@ -38,4 +38,19 @@ export const { auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
+  callbacks: {
+    // 1. 登录时把 user.id 写入 token
+    jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+      }
+      return token;
+    },
+
+    // 2. 每次请求时把 token.id 挂到 session
+    session({ session, token }) {
+      session.user.id = token.id as string;
+      return session;
+    },
+  },
 });

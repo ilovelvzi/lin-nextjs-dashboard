@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
-import postgres from 'postgres';
-import client from '@/app/lib/ai-client';
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
+import postgres from "postgres";
+import client from "@/app/lib/ai-client";
 
-const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
+const sql = postgres(process.env.POSTGRES_URL!, { ssl: "require" });
 
 const OPTIMIZE_SYSTEM_PROMPT = `你是一位专业的简历写作专家。
 请根据用户提供的简历内容（以及可选的目标岗位描述），生成一份经过优化的简历。
@@ -22,19 +22,23 @@ const OPTIMIZE_SYSTEM_PROMPT = `你是一位专业的简历写作专家。
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: '未授权' }, { status: 401 });
+    return NextResponse.json({ error: "未授权" }, { status: 401 });
   }
 
-  let body: { resumeContent: string; jobDescription?: string; resumeId: string };
+  let body: {
+    resumeContent: string;
+    jobDescription?: string;
+    resumeId: string;
+  };
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: '请求体格式错误' }, { status: 400 });
+    return NextResponse.json({ error: "请求体格式错误" }, { status: 400 });
   }
 
   const { resumeContent, jobDescription, resumeId } = body;
   if (!resumeContent || !resumeId) {
-    return NextResponse.json({ error: '缺少必要参数' }, { status: 400 });
+    return NextResponse.json({ error: "缺少必要参数" }, { status: 400 });
   }
 
   // Verify the resume belongs to the user
@@ -42,7 +46,7 @@ export async function POST(request: NextRequest) {
     SELECT id FROM resumes WHERE id = ${resumeId} AND user_id = ${session.user.id}
   `;
   if (resumeRows.length === 0) {
-    return NextResponse.json({ error: '简历不存在' }, { status: 404 });
+    return NextResponse.json({ error: "简历不存在" }, { status: 404 });
   }
 
   const userMessage = jobDescription
@@ -51,14 +55,15 @@ export async function POST(request: NextRequest) {
 
   try {
     const completion = await client.chat.completions.create({
-      model: 'qwen-plus',
+      // model: "gemma4:e2b",
+      model: "qwen3.6-plus",
       messages: [
-        { role: 'system', content: OPTIMIZE_SYSTEM_PROMPT },
-        { role: 'user', content: userMessage },
+        { role: "system", content: OPTIMIZE_SYSTEM_PROMPT },
+        { role: "user", content: userMessage },
       ],
     });
 
-    const optimizedContent = completion.choices[0]?.message?.content ?? '';
+    const optimizedContent = completion.choices[0]?.message?.content ?? "";
 
     // Save optimized content to database
     await sql`
@@ -69,7 +74,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, optimizedContent });
   } catch (error) {
-    console.error('AI optimize error:', error);
-    return NextResponse.json({ error: 'AI优化失败，请稍后重试' }, { status: 500 });
+    console.error("AI optimize error:", error);
+    return NextResponse.json(
+      { error: "AI优化失败，请稍后重试" },
+      { status: 500 },
+    );
   }
 }
