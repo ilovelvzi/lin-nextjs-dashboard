@@ -40,6 +40,25 @@ const SYSTEM_PROMPT = `你是一位专业的简历优化顾问，拥有丰富的
 
 suggestions中至少提供3条具体可操作的建议。`;
 
+type AnalysisResult = {
+  overall_score: number;
+  content_score: number;
+  format_score: number;
+  keyword_score: number;
+  experience_score: number;
+  education_score: number;
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  suggestions: Array<{
+    category: string;
+    original_text: string | null;
+    suggested_text: string | null;
+    reason: string;
+    priority: "high" | "medium" | "low";
+  }>;
+};
+
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -80,98 +99,134 @@ export async function POST(request: NextRequest) {
     ? `简历内容：\n${resumeContent}\n\n目标岗位描述：\n${jobDescription}`
     : `简历内容：\n${resumeContent}`;
 
-  try {
-    const completion = await client.chat.completions.create({
-      model: "qwen3.6-plus",
-      // stream: true,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userMessage },
-      ],
-      response_format: { type: "json_object" },
-    });
+  // Use SSE for streaming response
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      function sendEvent(event: string, data: unknown) {
+        controller.enqueue(
+          encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
+        );
+      }
 
-    const rawContent = completion.choices[0]?.message?.content ?? "{}";
-    const analysis = JSON.parse(rawContent) as {
-      overall_score: number;
-      content_score: number;
-      format_score: number;
-      keyword_score: number;
-      experience_score: number;
-      education_score: number;
-      summary: string;
-      strengths: string[];
-      weaknesses: string[];
-      suggestions: Array<{
-        category: string;
-        original_text: string | null;
-        suggested_text: string | null;
-        reason: string;
-        priority: "high" | "medium" | "low";
-      }>;
-    };
+      sendEvent("status", {
+        status: "analyzing",
+        message: "AI正在分析您的简历...",
+      });
 
-    // Save report to database
-    await sql`
-      INSERT INTO resume_reports (
-        resume_id, overall_score, content_score, format_score,
-        keyword_score, experience_score, education_score,
-        summary, strengths, weaknesses
-      ) VALUES (
-        ${resumeId},
-        ${analysis.overall_score ?? 0},
-        ${analysis.content_score ?? 0},
-        ${analysis.format_score ?? 0},
-        ${analysis.keyword_score ?? 0},
-        ${analysis.experience_score ?? 0},
-        ${analysis.education_score ?? 0},
-        ${analysis.summary ?? null},
-        ${sql.array(analysis.strengths ?? [])},
-        ${sql.array(analysis.weaknesses ?? [])}
-      )
-    `;
+      try {
+        const completion = await client.chat.completions.create({
+          model: "qwen-plus",
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: userMessage },
+          ],
+          response_format: { type: "json_object" },
+        });
 
-    // Save suggestions to database
-    if (
-      Array.isArray(analysis.suggestions) &&
-      analysis.suggestions.length > 0
-    ) {
-      await Promise.all(
-        analysis.suggestions.map(
-          (s) =>
-            sql`
-            INSERT INTO resume_suggestions (
-              resume_id, category, original_text, suggested_text, reason, priority
-            ) VALUES (
-              ${resumeId},
-              ${s.category ?? "其他"},
-              ${s.original_text ?? null},
-              ${s.suggested_text ?? null},
-              ${s.reason ?? null},
-              ${s.priority ?? "medium"}
-            )
-          `,
-        ),
-      );
-    }
+        const rawContent = completion.choices[0]?.message?.content ?? "{}";
+        const analysis = JSON.parse(rawContent) as AnalysisResult;
 
-    // Update resume status and score
-    await sql`
-      UPDATE resumes
-      SET status = 'completed', score = ${analysis.overall_score ?? 0}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${resumeId}
-    `;
+        // Send report data
+        sendEvent("report", {
+          overall_score: analysis.overall_score ?? 0,
+          content_score: analysis.content_score ?? 0,
+          format_score: analysis.format_score ?? 0,
+          keyword_score: analysis.keyword_score ?? 0,
+          experience_score: analysis.experience_score ?? 0,
+          education_score: analysis.education_score ?? 0,
+          summary: analysis.summary ?? "",
+          strengths: analysis.strengths ?? [],
+          weaknesses: analysis.weaknesses ?? [],
+        });
 
-    return NextResponse.json({ success: true, analysis });
-  } catch (error) {
-    console.error("AI analysis error:", error);
-    await sql`
-      UPDATE resumes SET status = 'failed', updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${resumeId}
-    `;
-    return NextResponse.json(
-      { error: "AI分析失败，请稍后重试" },
-      { status: 500 },
-    );
-  }
+        // Save report to database
+        await sql`
+          INSERT INTO resume_reports (
+            resume_id, overall_score, content_score, format_score,
+            keyword_score, experience_score, education_score,
+            summary, strengths, weaknesses
+          ) VALUES (
+            ${resumeId},
+            ${analysis.overall_score ?? 0},
+            ${analysis.content_score ?? 0},
+            ${analysis.format_score ?? 0},
+            ${analysis.keyword_score ?? 0},
+            ${analysis.experience_score ?? 0},
+            ${analysis.education_score ?? 0},
+            ${analysis.summary ?? null},
+            ${sql.array(analysis.strengths ?? [])},
+            ${sql.array(analysis.weaknesses ?? [])}
+          )
+        `;
+
+        // Batch-insert suggestions and then send events progressively
+        const suggestions = analysis.suggestions ?? [];
+        const insertedRows = await Promise.all(
+          suggestions.map(
+            (s) =>
+              sql<{ id: string }[]>`
+              INSERT INTO resume_suggestions (
+                resume_id, category, original_text, suggested_text, reason, priority
+              ) VALUES (
+                ${resumeId},
+                ${s.category ?? "其他"},
+                ${s.original_text ?? null},
+                ${s.suggested_text ?? null},
+                ${s.reason ?? null},
+                ${s.priority ?? "medium"}
+              )
+              RETURNING id
+            `,
+          ),
+        );
+
+        // Send suggestion events progressively
+        for (let i = 0; i < suggestions.length; i++) {
+          const s = suggestions[i];
+          sendEvent("suggestion", {
+            id: insertedRows[i][0].id,
+            resume_id: resumeId,
+            category: s.category ?? "其他",
+            original_text: s.original_text ?? null,
+            suggested_text: s.suggested_text ?? null,
+            reason: s.reason ?? null,
+            priority: s.priority ?? "medium",
+            is_applied: false,
+            index: i,
+            total: suggestions.length,
+          });
+        }
+
+        // Update resume status and score
+        await sql`
+          UPDATE resumes
+          SET status = 'completed', score = ${analysis.overall_score ?? 0}, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${resumeId}
+        `;
+
+        sendEvent("done", {
+          status: "completed",
+          score: analysis.overall_score ?? 0,
+        });
+      } catch (error) {
+        console.error("AI analysis error:", error);
+        await sql`
+          UPDATE resumes SET status = 'failed', updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${resumeId}
+        `;
+        sendEvent("error", { message: "AI分析失败，请稍后重试" });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }
