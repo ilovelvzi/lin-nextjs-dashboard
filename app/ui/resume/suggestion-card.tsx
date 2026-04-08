@@ -23,9 +23,11 @@ function PriorityBadge({ priority }: { priority: ResumeSuggestion['priority'] })
 export default function SuggestionCard({
   suggestion,
   resumeId,
+  onApplied,
 }: {
   suggestion: ResumeSuggestion;
   resumeId: string;
+  onApplied?: (suggestionId: string) => void;
 }) {
   const [applied, setApplied] = useState(suggestion.is_applied);
   const [isLoading, setIsLoading] = useState(false);
@@ -36,6 +38,7 @@ export default function SuggestionCard({
     try {
       await applyOptimization(suggestion.id, resumeId);
       setApplied(true);
+      onApplied?.(suggestion.id);
     } catch {
       // keep original state on error
     } finally {
