@@ -5,6 +5,7 @@ import { PaperAirplaneIcon } from "@heroicons/react/24/outline";
 import clsx from "clsx";
 
 type Message = {
+  id: string;
   role: "user" | "assistant";
   content: string;
 };
@@ -34,14 +35,22 @@ export default function ChatPanel() {
     const trimmed = input.trim();
     if (!trimmed || isLoading) return;
 
-    const userMessage: Message = { role: "user", content: trimmed };
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: trimmed,
+    };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput("");
     setIsLoading(true);
 
+    const assistantId = `assistant-${Date.now()}`;
     // Add an empty assistant message that will be streamed into
-    setMessages([...newMessages, { role: "assistant", content: "" }]);
+    setMessages([
+      ...newMessages,
+      { id: assistantId, role: "assistant", content: "" },
+    ]);
 
     try {
       const res = await fetch("/api/rag", {
@@ -66,8 +75,9 @@ export default function ChatPanel() {
         const data = await res.json();
         setMessages((prev) => {
           const updated = [...prev];
+          const last = updated[updated.length - 1];
           updated[updated.length - 1] = {
-            role: "assistant",
+            ...last,
             content: data.error || "发生未知错误",
           };
           return updated;
@@ -90,9 +100,10 @@ export default function ChatPanel() {
         const text = decoder.decode(value, { stream: true });
         setMessages((prev) => {
           const updated = [...prev];
+          const last = updated[updated.length - 1];
           updated[updated.length - 1] = {
-            role: "assistant",
-            content: updated[updated.length - 1].content + text,
+            ...last,
+            content: last.content + text,
           };
           return updated;
         });
@@ -100,8 +111,9 @@ export default function ChatPanel() {
     } catch (error) {
       setMessages((prev) => {
         const updated = [...prev];
+        const last = updated[updated.length - 1];
         updated[updated.length - 1] = {
-          role: "assistant",
+          ...last,
           content:
             error instanceof Error
               ? `出错了: ${error.message}`
@@ -129,9 +141,9 @@ export default function ChatPanel() {
           </div>
         )}
 
-        {messages.map((msg, i) => (
+        {messages.map((msg) => (
           <div
-            key={i}
+            key={msg.id}
             className={clsx("flex", {
               "justify-end": msg.role === "user",
               "justify-start": msg.role === "assistant",
