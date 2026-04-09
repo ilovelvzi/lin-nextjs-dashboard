@@ -3,12 +3,10 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import postgres from "postgres";
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
 import bcrypt from "bcrypt";
-
-const sql = postgres(process.env.POSTGRES_URL!, { ssl: "require" });
+import sql from "@/app/lib/db";
 
 const FormSchema = z.object({
   id: z.string(),
@@ -79,7 +77,7 @@ export async function createInvoice(prevState: State, formData: FormData) {
 export async function updateInvoice(
   id: string,
   prevState: State,
-  formData: FormData
+  formData: FormData,
 ) {
   const validatedFields = UpdateInvoice.safeParse({
     customerId: formData.get("customerId"),
@@ -120,7 +118,7 @@ export async function deleteInvoice(id: string) {
 
 export async function authenticate(
   prevState: string | undefined,
-  formData: FormData
+  formData: FormData,
 ) {
   try {
     await signIn("credentials", formData);
@@ -156,7 +154,7 @@ const RegisterSchema = z.object({
 
 export async function registerUser(
   prevState: RegisterState,
-  formData: FormData
+  formData: FormData,
 ): Promise<RegisterState> {
   const validatedFields = RegisterSchema.safeParse({
     name: formData.get("name"),
@@ -198,7 +196,7 @@ export async function registerUser(
       VALUES (${name}, ${email}, ${hashedPassword})
     `;
   } catch (error) {
-    console.error('Database Error:', error);
+    console.error("Database Error:", error);
     return { message: "数据库错误：注册失败，请稍后重试。" };
   }
 

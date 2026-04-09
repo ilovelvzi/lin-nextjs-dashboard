@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import postgres from "postgres";
+import sql from "@/app/lib/db";
 import client from "@/app/lib/ai-client";
-
-const sql = postgres(process.env.POSTGRES_URL!, { ssl: "require" });
 
 const OPTIMIZE_SYSTEM_PROMPT = `你是一位专业的简历写作专家。
 请根据用户提供的简历内容和用户采纳的优化建议，生成一份经过优化的简历。
