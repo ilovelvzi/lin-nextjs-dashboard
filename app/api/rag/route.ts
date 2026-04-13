@@ -10,7 +10,16 @@ export async function POST(req: Request) {
   const userQuery = messages[messages.length - 1].content;
 
   // 去数据库检索相关文本块
-  const chunks = await retrieveContext(userQuery);
+  let chunks: Awaited<ReturnType<typeof retrieveContext>>;
+  try {
+    chunks = await retrieveContext(userQuery);
+  } catch (err) {
+    console.error("[RAG] retrieveContext 失败:", err);
+    return new Response(
+      JSON.stringify({ error: "检索服务暂时不可用，请检查服务配置" }),
+      { status: 503, headers: { "Content-Type": "application/json" } },
+    );
+  }
 
   const enc = new TextEncoder();
   function sse(event: string, data: unknown): Uint8Array {
@@ -42,14 +51,16 @@ export async function POST(req: Request) {
   // 保留最近 6 条对话（3 轮）作为多轮上下文，避免超出 context window
   const history = messages.slice(-6);
 
-  const completionStream = await client.chat.completions.create({
-    model: "qwen-plus",
-    temperature: 0.1,
-    stream: true,
-    messages: [
-      {
-        role: "system",
-        content: `你是一个知识库助手，严格根据以下上下文内容回答用户问题。
+  let completionStream: Awaited<ReturnType<typeof client.chat.completions.create>>;
+  try {
+    completionStream = await client.chat.completions.create({
+      model: "qwen-plus",
+      temperature: 0.1,
+      stream: true,
+      messages: [
+        {
+          role: "system",
+          content: `你是一个知识库助手，严格根据以下上下文内容回答用户问题。
 
 规则：
 1. 只使用上下文中的信息作答，不得编造或推断上下文未提及的内容。
@@ -60,10 +71,17 @@ export async function POST(req: Request) {
 
 ## 知识库上下文
 ${context}`,
-      },
-      ...history,
-    ],
-  });
+        },
+        ...history,
+      ],
+    });
+  } catch (err) {
+    console.error("[RAG] LLM 请求失败:", err);
+    return new Response(
+      JSON.stringify({ error: "AI 服务暂时不可用，请检查 API Key 配置" }),
+      { status: 503, headers: { "Content-Type": "application/json" } },
+    );
+  }
 
   const stream = new ReadableStream({
     async start(controller) {
