@@ -2,11 +2,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import postgres from "postgres";
 import { z } from "zod";
 import type { Resume } from "./definitions";
-
-const sql = postgres(process.env.POSTGRES_URL!, { ssl: "require" });
+import sql from "./db";
 
 const CreateResumeSchema = z.object({
   title: z.string().min(1, { message: "请输入简历标题。" }).max(255),
