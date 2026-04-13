@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { put } from "@vercel/blob";
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -41,20 +42,30 @@ export async function POST(request: NextRequest) {
 
   try {
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    // Buffer.from(Uint8Array) copies data; Buffer.from(ArrayBuffer) shares it.
+    // The WASM-based PDF extractor (unpdf) detaches the original ArrayBuffer,
+    // so we create an independent copy here to avoid "detached ArrayBuffer" errors
+    // in subsequent operations (mammoth, Vercel Blob upload via fetch/undici).
+    const buffer = Buffer.from(new Uint8Array(arrayBuffer));
+    const fileType = file.type === "application/pdf" ? "pdf" : "docx";
+    const originalName = (file as File).name ?? `resume.${fileType}`;
     let text = "";
+    let originalHtml: string | undefined;
 
-    if (file.type === "application/pdf") {
+    if (fileType === "pdf") {
       const { extractText } = await import("unpdf");
-      const result = await extractText(new Uint8Array(arrayBuffer), {
+      const result = await extractText(new Uint8Array(buffer), {
         mergePages: true,
       });
       text = (result.text as string).trim();
     } else {
-      // Word (.docx) using mammoth
       const mammoth = await import("mammoth");
-      const result = await mammoth.extractRawText({ buffer });
-      text = result.value.trim();
+      const [rawResult, htmlResult] = await Promise.all([
+        mammoth.extractRawText({ buffer }),
+        mammoth.convertToHtml({ buffer }),
+      ]);
+      text = rawResult.value.trim();
+      originalHtml = htmlResult.value;
     }
 
     if (!text) {
@@ -64,7 +75,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ text });
+    // Upload original file to Vercel Blob
+    const safeName = originalName.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+    const blobPath = `resumes/${session.user.id}/${Date.now()}_${safeName}`;
+    const blob = await put(blobPath, buffer, {
+      access: "private",
+      contentType: file.type,
+    });
+
+    return NextResponse.json({
+      text,
+      fileUrl: blob.url,
+      fileType,
+      ...(originalHtml !== undefined ? { originalHtml } : {}),
+    });
   } catch (error) {
     console.error("File parse error:", error);
     return NextResponse.json(

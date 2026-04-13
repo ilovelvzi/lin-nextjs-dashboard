@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState } from "react";
 import {
   UserIcon,
   BriefcaseIcon,
@@ -9,7 +9,7 @@ import {
   DocumentTextIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-} from '@heroicons/react/24/outline';
+} from "@heroicons/react/24/outline";
 
 type ResumeSection = {
   title: string;
@@ -33,8 +33,7 @@ const SECTION_PATTERNS: Array<{ pattern: RegExp; icon: React.ElementType }> = [
     icon: BriefcaseIcon,
   },
   {
-    pattern:
-      /^(教育背景|教育经历|学历|education|academic)/i,
+    pattern: /^(教育背景|教育经历|学历|education|academic)/i,
     icon: AcademicCapIcon,
   },
   {
@@ -53,10 +52,10 @@ function getIconForSection(title: string): React.ElementType {
   return DocumentTextIcon;
 }
 
-function parseResumeIntoSections(content: string): ResumeSection[] {
-  const lines = content.split('\n');
+export function parseResumeIntoSections(content: string): ResumeSection[] {
+  const lines = content.split("\n");
   const sections: ResumeSection[] = [];
-  let currentTitle = '简历内容';
+  let currentTitle = "简历内容";
   let currentLines: string[] = [];
 
   function hasHeaderMarker(trimmed: string, nextLine: string): boolean {
@@ -71,22 +70,18 @@ function parseResumeIntoSections(content: string): ResumeSection[] {
 
   function matchesKnownSection(text: string): boolean {
     const cleanTitle = text
-      .replace(/^[#]+\s*/, '')
-      .replace(/^[【\[]/, '')
-      .replace(/[】\]]$/, '')
-      .replace(/[:：]$/, '')
+      .replace(/^[#]+\s*/, "")
+      .replace(/^[【\[]/, "")
+      .replace(/[】\]]$/, "")
+      .replace(/[:：]$/, "")
       .trim();
     return SECTION_PATTERNS.some(({ pattern }) => pattern.test(cleanTitle));
   }
 
-  function isIsolatedShortLine(
-    trimmed: string,
-    idx: number,
-  ): boolean {
+  function isIsolatedShortLine(trimmed: string, idx: number): boolean {
     if (trimmed.length > SHORT_LINE_LENGTH) return false;
     const prevBlank = idx === 0 || !lines[idx - 1]?.trim();
-    const nextBlank =
-      idx === lines.length - 1 || !lines[idx + 1]?.trim();
+    const nextBlank = idx === lines.length - 1 || !lines[idx + 1]?.trim();
     return prevBlank && nextBlank;
   }
 
@@ -96,7 +91,7 @@ function parseResumeIntoSections(content: string): ResumeSection[] {
     if (/^[-•·▪▸►➤→※*]/.test(trimmed)) return false;
     if (/^[\d]+[.\)、]/.test(trimmed)) return false;
 
-    const nextLine = lines[idx + 1]?.trim() || '';
+    const nextLine = lines[idx + 1]?.trim() || "";
     return (
       hasHeaderMarker(trimmed, nextLine) ||
       matchesKnownSection(trimmed) ||
@@ -108,7 +103,7 @@ function parseResumeIntoSections(content: string): ResumeSection[] {
     if (isHeader(lines[i], i)) {
       // Save previous section
       if (currentLines.length > 0 || sections.length > 0) {
-        const content = currentLines.join('\n').trim();
+        const content = currentLines.join("\n").trim();
         if (content) {
           sections.push({
             title: currentTitle,
@@ -121,17 +116,17 @@ function parseResumeIntoSections(content: string): ResumeSection[] {
       // Clean up header title
       currentTitle = lines[i]
         .trim()
-        .replace(/^[#]+\s*/, '')
-        .replace(/^[【\[]/, '')
-        .replace(/[】\]]$/, '')
-        .replace(/[:：]$/, '')
+        .replace(/^[#]+\s*/, "")
+        .replace(/^[【\[]/, "")
+        .replace(/[】\]]$/, "")
+        .replace(/[:：]$/, "")
         .trim();
       currentLines = [];
 
       // Skip separator line after header
       if (
         i + 1 < lines.length &&
-        /^[-=]{3,}$/.test(lines[i + 1]?.trim() || '')
+        /^[-=]{3,}$/.test(lines[i + 1]?.trim() || "")
       ) {
         i++;
       }
@@ -141,7 +136,7 @@ function parseResumeIntoSections(content: string): ResumeSection[] {
   }
 
   // Push last section
-  const lastContent = currentLines.join('\n').trim();
+  const lastContent = currentLines.join("\n").trim();
   if (lastContent) {
     sections.push({
       title: currentTitle,
@@ -153,7 +148,7 @@ function parseResumeIntoSections(content: string): ResumeSection[] {
   // If no sections were detected, put everything in a single section
   if (sections.length === 0) {
     sections.push({
-      title: '简历内容',
+      title: "简历内容",
       content: content.trim(),
       icon: DocumentTextIcon,
     });
@@ -193,10 +188,7 @@ function SectionCard({ section }: { section: ResumeSection }) {
 }
 
 export default function ResumeContent({ content }: { content: string }) {
-  const sections = useMemo(
-    () => parseResumeIntoSections(content),
-    [content],
-  );
+  const sections = useMemo(() => parseResumeIntoSections(content), [content]);
 
   return (
     <div className="space-y-3">

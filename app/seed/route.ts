@@ -111,6 +111,9 @@ async function seedResumes() {
       job_description TEXT,
       score INTEGER DEFAULT 0,
       status VARCHAR(50) DEFAULT 'pending',
+      original_file_url VARCHAR(500),
+      original_file_type VARCHAR(10),
+      original_html TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );

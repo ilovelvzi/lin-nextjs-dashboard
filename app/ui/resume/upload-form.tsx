@@ -1,32 +1,32 @@
-'use client';
+"use client";
 
-import { useState, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { createResume } from '@/app/lib/resume-actions';
-import { Button } from '@/app/ui/button';
+import { useState, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { createResume } from "@/app/lib/resume-actions";
+import { Button } from "@/app/ui/button";
 import {
   ExclamationCircleIcon,
   ArrowUpTrayIcon,
   DocumentIcon,
   XMarkIcon,
-} from '@heroicons/react/24/outline';
+} from "@heroicons/react/24/outline";
 
 const ACCEPTED_TYPES = [
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 
 const ACCEPT_STRING =
-  'application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,.docx';
+  "application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,.docx";
 
 function getFileTypeLabel(type: string): string {
-  if (type === 'application/pdf') return 'PDF';
+  if (type === "application/pdf") return "PDF";
   if (
     type ===
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   )
-    return 'Word';
-  return '文件';
+    return "Word";
+  return "文件";
 }
 
 export default function UploadForm() {
@@ -40,11 +40,11 @@ export default function UploadForm() {
 
   const validateFile = useCallback((file: File): boolean => {
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      setError('请上传 PDF 或 Word (.docx) 格式的文件');
+      setError("请上传 PDF 或 Word (.docx) 格式的文件");
       return false;
     }
     if (file.size > 10 * 1024 * 1024) {
-      setError('文件大小不能超过 10MB');
+      setError("文件大小不能超过 10MB");
       return false;
     }
     return true;
@@ -83,7 +83,7 @@ export default function UploadForm() {
   const handleRemoveFile = () => {
     setUploadFile(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
@@ -94,15 +94,15 @@ export default function UploadForm() {
 
     const form = e.currentTarget;
     const title = (
-      form.elements.namedItem('title') as HTMLInputElement
+      form.elements.namedItem("title") as HTMLInputElement
     )?.value?.trim();
     const jobDescription =
       (
-        form.elements.namedItem('jobDescription') as HTMLTextAreaElement
+        form.elements.namedItem("jobDescription") as HTMLTextAreaElement
       )?.value?.trim() || undefined;
 
     if (!uploadFile) {
-      setError('请选择要上传的文件');
+      setError("请选择要上传的文件");
       setIsSubmitting(false);
       return;
     }
@@ -110,23 +110,29 @@ export default function UploadForm() {
     // Parse the file
     setIsParsing(true);
     let originalContent: string;
+    let fileUrl: string | undefined;
+    let fileType: string | undefined;
+    let originalHtml: string | undefined;
     try {
       const fileFormData = new FormData();
-      fileFormData.append('file', uploadFile);
-      const res = await fetch('/api/resume/parse-file', {
-        method: 'POST',
+      fileFormData.append("file", uploadFile);
+      const res = await fetch("/api/resume/parse-file", {
+        method: "POST",
         body: fileFormData,
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || '文件解析失败');
+        setError(data.error || "文件解析失败");
         setIsSubmitting(false);
         setIsParsing(false);
         return;
       }
       originalContent = data.text as string;
+      fileUrl = data.fileUrl as string | undefined;
+      fileType = data.fileType as string | undefined;
+      originalHtml = data.originalHtml as string | undefined;
     } catch {
-      setError('文件解析失败，请重试');
+      setError("文件解析失败，请重试");
       setIsSubmitting(false);
       setIsParsing(false);
       return;
@@ -135,13 +141,16 @@ export default function UploadForm() {
 
     // Build FormData
     const formData = new FormData();
-    formData.set('title', title);
-    formData.set('originalContent', originalContent);
-    if (jobDescription) formData.set('jobDescription', jobDescription);
+    formData.set("title", title);
+    formData.set("originalContent", originalContent);
+    if (jobDescription) formData.set("jobDescription", jobDescription);
+    if (fileUrl) formData.set("fileUrl", fileUrl);
+    if (fileType) formData.set("fileType", fileType);
+    if (originalHtml) formData.set("originalHtml", originalHtml);
 
     const result = await createResume(formData);
 
-    if ('error' in result) {
+    if ("error" in result) {
       setError(result.error);
       setIsSubmitting(false);
       return;
@@ -185,7 +194,7 @@ export default function UploadForm() {
                 {uploadFile.name}
               </p>
               <p className="text-xs text-gray-500">
-                {getFileTypeLabel(uploadFile.type)} ·{' '}
+                {getFileTypeLabel(uploadFile.type)} ·{" "}
                 {(uploadFile.size / 1024).toFixed(1)} KB
               </p>
             </div>
@@ -206,8 +215,8 @@ export default function UploadForm() {
             onClick={() => fileInputRef.current?.click()}
             className={`flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-10 cursor-pointer transition-colors ${
               isDragging
-                ? 'border-blue-400 bg-blue-50'
-                : 'border-gray-300 bg-gray-50 hover:border-blue-300 hover:bg-blue-50'
+                ? "border-blue-400 bg-blue-50"
+                : "border-gray-300 bg-gray-50 hover:border-blue-300 hover:bg-blue-50"
             }`}
           >
             <ArrowUpTrayIcon className="h-8 w-8 text-gray-400" />
@@ -237,7 +246,7 @@ export default function UploadForm() {
           htmlFor="jobDescription"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          目标岗位描述{' '}
+          目标岗位描述{" "}
           <span className="text-gray-400 font-normal">
             （可选，填写后AI将针对性优化）
           </span>
@@ -264,11 +273,7 @@ export default function UploadForm() {
         disabled={isSubmitting}
         className="w-full justify-center"
       >
-        {isParsing
-          ? '解析文件中...'
-          : isSubmitting
-            ? '上传中...'
-            : '开始分析'}
+        {isParsing ? "解析文件中..." : isSubmitting ? "上传中..." : "开始分析"}
       </Button>
     </form>
   );

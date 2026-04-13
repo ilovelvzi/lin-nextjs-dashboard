@@ -1,9 +1,9 @@
-import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { ChevronLeftIcon, SparklesIcon } from '@heroicons/react/24/outline';
-import { lusitana } from '@/app/ui/fonts';
-import { getResumeById } from '@/app/lib/resume-actions';
-import CompareView from '@/app/ui/resume/compare-view';
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { ChevronLeftIcon, SparklesIcon } from "@heroicons/react/24/outline";
+import { lusitana } from "@/app/ui/fonts";
+import { getResumeById } from "@/app/lib/resume-actions";
+import CompareView from "@/app/ui/resume/compare-view";
 
 export default async function OptimizedPage({
   params,
@@ -38,6 +38,10 @@ export default async function OptimizedPage({
       <CompareView
         originalContent={resume.original_content}
         optimizedContent={resume.optimized_content}
+        title={resume.title}
+        resumeId={resume.id}
+        originalFileType={resume.original_file_type}
+        originalHtml={resume.original_html}
       />
     </div>
   );
