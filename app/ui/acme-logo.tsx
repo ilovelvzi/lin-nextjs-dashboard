@@ -1,13 +1,13 @@
-import { GlobeAltIcon } from "@heroicons/react/24/outline";
+import { WrenchScrewdriverIcon } from "@heroicons/react/24/outline";
 import { lusitana } from "@/app/ui/fonts";
 
 export default function AcmeLogo() {
   return (
     <div
-      className={`${lusitana.className} flex flex-row items-center leading-none text-white`}
+      className={`${lusitana.className} flex flex-row items-center gap-2 leading-none text-white`}
     >
-      <GlobeAltIcon className="h-12 w-12 rotate-[15deg]" />
-      <p className="text-[44px]">Acme</p>
+      <WrenchScrewdriverIcon className="h-7 w-7 md:h-9 md:w-9" />
+      <p className="text-2xl tracking-widest md:text-3xl">工具台</p>
     </div>
   );
 }

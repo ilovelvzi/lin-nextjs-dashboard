@@ -1,55 +1,69 @@
-import AcmeLogo from "@/app/ui/acme-logo";
-import { ArrowRightIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowRightIcon,
+  DocumentTextIcon,
+  ChatBubbleLeftRightIcon,
+  SparklesIcon,
+} from "@heroicons/react/24/outline";
 import Link from "next/link";
-// import styles from "@/app/ui/home.module.css";
 import { lusitana } from "@/app/ui/fonts";
-import Image from "next/image";
+
+const features = [
+  {
+    icon: DocumentTextIcon,
+    title: "简历优化",
+    desc: "上传 PDF/DOCX，AI 深度分析并给出针对性优化建议",
+    color: "text-blue-600",
+    bg: "bg-blue-50",
+  },
+  {
+    icon: ChatBubbleLeftRightIcon,
+    title: "知识库问答",
+    desc: "上传文档构建私有知识库，基于内容进行精准问答",
+    color: "text-purple-600",
+    bg: "bg-purple-50",
+  },
+];
 
 export default function Page() {
   return (
-    <main className="flex min-h-screen flex-col p-6">
-      <div className="flex h-20 shrink-0 items-end rounded-lg bg-blue-500 p-4 md:h-52">
-        <AcmeLogo />
-      </div>
-      <div className="mt-4 flex grow flex-col gap-4 md:flex-row">
-        <div className="flex flex-col justify-center gap-6 rounded-lg bg-gray-50 px-6 py-10 md:w-2/5 md:px-20">
-          <div className="relative w-0 h-0 border-l-[15px] border-r-[15px] border-b-[26px] border-l-transparent border-r-transparent border-b-black" />
-          {/* <div className={styles.shape}></div> */}
+    <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-6 py-16 md:py-24">
+        {/* 标题区 */}
+        <div className="mb-4 flex items-center gap-2 rounded-full bg-blue-100 px-4 py-1.5 text-sm font-medium text-blue-700">
+          <SparklesIcon className="h-4 w-4" />
+          AI 驱动的个人效率工具
+        </div>
+        <h1
+          className={`${lusitana.className} mb-4 text-center text-3xl font-bold text-gray-900 md:text-5xl`}
+        >
+          你的专属工具台
+        </h1>
+        <p className="mb-10 max-w-md text-center text-gray-500 md:text-lg">
+          集简历优化与知识库问答于一体，让 AI 成为你的高效助理。
+        </p>
 
-          <p
-            className={`${lusitana.className} text-xl text-gray-800 md:text-3xl md:leading-normal`}
-          >
-            <strong>Welcome to Acme.</strong> This is the example for the{" "}
-            <a href="https://nextjs.org/learn/" className="text-blue-500">
-              Next.js Learn Course
-            </a>
-            , brought to you by Vercel.
-          </p>
-          <Link
-            href="/login"
-            className="flex items-center gap-5 self-start rounded-lg bg-blue-500 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-400 md:text-base"
-          >
-            <span>Log in</span> <ArrowRightIcon className="w-5 md:w-6" />
-          </Link>
+        {/* 功能卡片 */}
+        <div className="mb-10 grid w-full max-w-2xl gap-4 sm:grid-cols-2">
+          {features.map(({ icon: Icon, title, desc, color, bg }) => (
+            <div
+              key={title}
+              className="flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm"
+            >
+              <div className={`w-fit rounded-xl ${bg} p-3`}>
+                <Icon className={`h-6 w-6 ${color}`} />
+              </div>
+              <p className="font-semibold text-gray-900">{title}</p>
+              <p className="text-sm text-gray-500">{desc}</p>
+            </div>
+          ))}
         </div>
-        <div className="flex items-center justify-center p-6 md:w-3/5 md:px-28 md:py-12">
-          {/* Add Hero Images Here */}
-          <Image
-            src={"/hero-desktop.png"}
-            width={1000}
-            height={760}
-            className="hidden md:block"
-            alt="Screenshots of the dashboard project showing desktop version"
-          />
-          <Image
-            src={"/hero-mobile.png"}
-            width={560}
-            height={620}
-            className="block md:hidden"
-            alt="Screenshot of the dashboard project showing mobile version"
-          />
-        </div>
-      </div>
+
+        {/* 登录按钮 */}
+        <Link
+          href="/login"
+          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-8 py-3 text-sm font-semibold text-white shadow-md transition-colors hover:bg-blue-500 md:text-base"
+        >
+          立即进入 <ArrowRightIcon className="h-4 w-4 md:h-5 md:w-5" />
+        </Link>
     </main>
   );
 }
